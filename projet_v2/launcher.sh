@@ -1,4 +1,6 @@
 #! /bin/bash
+file_gestion="gestion.sh"
+
 
 action=$(yad --width 300 --entry --title "Planificateur de tâches" --center --button="gtk-ok:0" --button="gtk-close:1" --text "Actions :" --entry-text "Gestion utilisateurs" "Gestion rappatriements" "Gestion stratégies" "Générer rapport"
 )
@@ -8,11 +10,22 @@ action=$(yad --width 300 --entry --title "Planificateur de tâches" --center --b
 action=$(echo $action | cut -f2 -d" ")
 
 case $action in
-    utilisateurs*) cmd="./user.sh" ;;
-    rappatriements*) cmd="./rap.sh" ;;
-    stratégies*) cmd="echo -e 'Gestion stratégies'" ;;
-    rapport*) cmd="echo -e 'Générer un rapport'" ;;
+    utilisateurs*) file_name="users.txt"
+						name="utilisateur";;
+    rappatriements*) file_name="rapp.txt"
+						name="rappatriement";;
+    stratégies*) file_name="strat.txt"
+					name="stratégies";;
+    rapport*) file_name="rapp.txt"
+				name="rappatriement";;
     *) exit 1 ;;        
 esac
 
-eval exec $cmd
+if [[ ! -x $file_gestion ]]; then
+	chmod +x $file_gestion
+fi
+eval exec "./${file_gestion} ${file_name} ${name} ${0##*/}"
+
+
+
+

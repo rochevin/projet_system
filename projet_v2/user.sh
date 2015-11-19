@@ -6,10 +6,16 @@
 ##Corps du programme
 file_name="users.txt"
 name="utilisateur"
-
+launcher="launcher.sh"
 
 if [ -f $file_name ]; then
-	Gestion $name
+	file_data=$(cat $file_name | tr "|" " ")
+
+
+	action=$(yad --list --editable --width 500 --height 300 --center --button="Ajouter:0" --button="Modifier:2" --button="Supprimer:3" --button="Acceuil:4" --button="gtk-close:1" --title="Gestion des ${1}s" \
+	--column="Id:HD" --column="Nom:TEXT" --column="Prénom:TEXT" --column="Adresse mail:TEXT" \
+	$file_data)
+	rep=$?
 	
 
 	#Si on appuie sur le bouton close, on quitte le programme
@@ -19,16 +25,24 @@ if [ -f $file_name ]; then
 
 	##Ajout utilisateurs
 	if [[ $rep -eq 0 ]]; then
-		Ajout 1 $name
+		value=$(yad --form --title "Ajout d'un ${name}" --center --button="gtk-ok:0" --button="gtk-close:1" --field="Nom:" --field="Prénom" --field="Adresse mail :")
+		#Si on appuie sur le bouton close, on quitte le programme
+		[[ $rep -eq 1 ]] && exit 0
+		Ajout $value
 	elif [[ $rep -eq 2 ]]; then
-		Modif
+		Modif $action $launcher $name
 	elif [[ $rep -eq 3 ]]; then
-		Supp
+		Supp $action $launcher $name
 	elif [[ $rep -eq 4 ]]; then
-		./launcher.sh
+		if [[ ! -x $launcher ]]; then
+			chmod +x $launcher
+		fi
+		./$launcher
 	fi
 else
-	Ajout 0 $name
+	value=$(yad --form --title "Ajout d'un ${name}" --center --button="gtk-ok:0" --button="gtk-close:1" --image=dialog-warning --text="Aucun ${name} référencé, \n veuillez en créer un :" --field="Nom:" --field="Prénom" --field="Adresse mail :")
+	rep=$?
+	#Si on appuie sur le bouton close, on quitte le programme
+	[[ $rep -eq 1 ]] && exit 0
+	Ajout $value
 fi
-
-
