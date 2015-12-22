@@ -38,19 +38,19 @@ function Ajout {
 
 
 function Modif {
-	if [ ! -s "$file_name" ]; then
-		if [[ ! -x "$file_name" ]]; then
-			chmod +x $file_name
+	if [ ! -s "${file_name}" ]; then
+		if [[ ! -x "${file_name}" ]]; then
+			chmod +x ${file_name}
 		fi
-		rm $file_name
+		rm ${file_name}
 	fi
-	if [ -f "$file_name" ]; then
+	if [ -f "${file_name}" ]; then
 		id=$(echo $action | cut -f1 -d"|")
 		id+="|"
-		initial_name=$(grep $id $file_name)
+		initial_name=$(grep $id ${file_name})
 		new_name=$(echo $action | sed 's/.\{1\}$//g')
-		sed -i -e "s/${initial_name}/${new_name}/ $file_name"
-		./$script_name
+		sed -i -e "s/${initial_name}/${new_name}/" ${file_name}
+		./${script_name}
 		exit 0
 	else
 		no_ref
@@ -68,7 +68,7 @@ function Supp {
 	if [ -f "$file_name" ]; then
 		value=$(echo $action | sed 's/.\{1\}$//g')
 		lign_number_user=$(grep -n "${value}" ${file_name} | cut -f1 -d":")
-		sed -i "${lign_number_user}d" ${file_name}
+		sed -i -e "${lign_number_user}d" ${file_name}
 		
 		if [ ! -s "$file_name" ]; then
 			if [[ ! -x "$file_name" ]]; then
@@ -82,4 +82,10 @@ function Supp {
 		no_ref
 	fi
 	exit 0
+}
+
+function Create_db {
+	if [ -f "$db_name"]; then
+		
+	fi
 }
