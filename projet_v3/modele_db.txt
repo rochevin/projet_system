@@ -3,19 +3,19 @@ CREATE TABLE users (
 	name VARCHAR(20),
 	first_name VARCHAR(20),
 	mail VARCHAR(40)
-;)
+);
 
 CREATE TABLE rapps (
 	id INTEGER NOT NULL PRIMARY KEY,
 	file_name VARCHAR(50),
 	local_path VARCHAR(150),
 	dist_path VARCHAR(150)
-;)
+);
 
-CREATE TABLE Contenu (
+CREATE TABLE strategies (
 	id_user INTEGER NOT NULL CONSTRAINT fk_document_contenu REFERENCES users(id),
 	id_rapp INTEGER NOT NULL CONSTRAINT fk_produit_contenu REFERENCES rapps(id),
 	periodicity VARCHAR(20),
-	date DATE
-	PRIMARY KEY (id_users, id_rapp)
+	date DATE,
+	PRIMARY KEY (id_user, id_rapp)
 );
