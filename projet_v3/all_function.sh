@@ -97,3 +97,19 @@ function remove_last_char {
 function replace {
 	echo $1 | tr "${2}" "${3}"
 }
+
+function is_value {
+	sqlite3 ${db_name} "select * from ${1}"
+}
+
+function add_value {
+	sqlite3 ${db_name} ""
+}
+
+function mv_value {
+	sqlite3 ${db_name} ""
+}
+
+function rm_value {
+	sqlite3 ${db_name} ""
+}
