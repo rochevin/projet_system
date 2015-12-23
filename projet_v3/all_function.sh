@@ -85,7 +85,13 @@ function Supp {
 }
 
 function Create_db {
-	if [ -f "$db_name"]; then
-		
-	fi
+	eval exec "sqlite3 ${db_name} < ${modele_db}" || echo "Impossible de créer la base de données ${db_name}. \n Créer la base manuellement avec le modele disponible : ${modele_db}"
+}
+
+function remove_last_char {
+	echo $1 | sed 's/.\{1\}$//g'
+}
+
+function replace {
+	echo $1 | tr "${2}" "${3}"
 }
