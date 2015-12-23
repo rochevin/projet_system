@@ -103,11 +103,17 @@ function is_value {
 }
 
 function add_value {
-	sqlite3 ${db_name} ""
+	sqlite3 ${db_name} "INSERT INTO ${1} VALUES (NULL,${2})"
 }
 
 function mv_value {
-	sqlite3 ${db_name} ""
+	array=(${2//|/ })
+	case $1 in
+		utilisateurs*) sqlite3 ${db_name} "UPDATE ${1} SET name=${array[1]}, first_name=${array[2]}, mail=${array[3]} WHERE id=${array[0]};";;
+		rappatriements*) sqlite3 ${db_name} "UPDATE ${1} SET file_name=${array[1]}, local_path=${array[2]}, dist_path=${array[3]} WHERE id=${array[0]};";;
+		stratégies*) sqlite3 ${db_name} "UPDATE ${1} SET id_user=${array[1]}, id_rapp=${array[2]}, periodicity=${array[3]} date=${array[4]} WHERE id=${array[0]};";;
+		*) exit 1 ;;        
+	esac
 }
 
 function rm_value {
