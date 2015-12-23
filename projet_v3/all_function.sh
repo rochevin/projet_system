@@ -85,7 +85,9 @@ function Supp {
 }
 
 function Create_db {
-	eval exec "sqlite3 ${db_name} < ${modele_db}" || echo "Impossible de créer la base de données ${db_name}. \n Créer la base manuellement avec le modele disponible : ${modele_db}"
+	if [[ ! -f "${db_name}"]]; then
+		eval exec "sqlite3 ${db_name} < ${modele_db}" || echo "Impossible de créer la base de données ${db_name}. \n Créer la base manuellement avec le modele disponible : ${modele_db}"
+	fi
 }
 
 function remove_last_char {
