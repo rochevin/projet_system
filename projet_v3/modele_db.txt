@@ -1,21 +1,25 @@
+PRAGMA foreign_keys = ON;
+
 CREATE TABLE users (
-	id INTEGER NOT NULL PRIMARY KEY,
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
 	name VARCHAR(20),
 	first_name VARCHAR(20),
 	mail VARCHAR(40)
 );
 
 CREATE TABLE rapps (
-	id INTEGER NOT NULL PRIMARY KEY,
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
 	file_name VARCHAR(50),
 	local_path VARCHAR(150),
 	dist_path VARCHAR(150)
 );
 
 CREATE TABLE strategies (
-	id_user INTEGER NOT NULL CONSTRAINT fk_document_contenu REFERENCES users(id),
-	id_rapp INTEGER NOT NULL CONSTRAINT fk_produit_contenu REFERENCES rapps(id),
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+	id_user INTEGER NOT NULL,
+	id_rapp INTEGER NOT NULL,
 	periodicity VARCHAR(20),
 	date DATE,
-	PRIMARY KEY (id_user, id_rapp)
+	FOREIGN KEY id_user REFERENCES users(id),
+	FOREIGN KEY id_rapp REFERENCES rapps(id)
 );

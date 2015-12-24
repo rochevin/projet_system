@@ -98,24 +98,38 @@ function replace {
 	echo $1 | tr "${2}" "${3}"
 }
 
+function get_id {
+	echo $1 | cut -f1 -d"|"
+}
+
+#print all field except the first (id) with specific separator
+function print_values {
+	echo $1 | awk -F  "${2}" '{$1 = ""; print $0; }'
+}
+
 function is_value {
-	sqlite3 ${db_name} "select * from ${1}"
+	sqlite3 ${db_name} "SELECT * FROM ${1}"
 }
 
 function add_value {
 	sqlite3 ${db_name} "INSERT INTO ${1} VALUES (NULL,${2})"
 }
 
-function mv_value {
-	array=(${2//|/ })
-	case $1 in
-		utilisateurs*) sqlite3 ${db_name} "UPDATE ${1} SET name=${array[1]}, first_name=${array[2]}, mail=${array[3]} WHERE id=${array[0]};";;
-		rappatriements*) sqlite3 ${db_name} "UPDATE ${1} SET file_name=${array[1]}, local_path=${array[2]}, dist_path=${array[3]} WHERE id=${array[0]};";;
-		stratégies*) sqlite3 ${db_name} "UPDATE ${1} SET id_user=${array[1]}, id_rapp=${array[2]}, periodicity=${array[3]} date=${array[4]} WHERE id=${array[0]};";;
-		*) exit 1 ;;        
-	esac
+function rm_value {
+	sqlite3 ${db_name} "DELETE FROM ${1} WHERE id=${2}"
 }
 
-function rm_value {
-	sqlite3 ${db_name} ""
+function mv_value {
+	rm_value ${1} ${2}
+	add_value ${1} ${2}
 }
+
+# function mv_value {
+# 	array=(${2//|/ })
+# 	case $1 in
+# 		utilisateurs*) sqlite3 ${db_name} "UPDATE ${1} SET name=${array[1]}, first_name=${array[2]}, mail=${array[3]} WHERE id=${array[0]};";;
+# 		rappatriements*) sqlite3 ${db_name} "UPDATE ${1} SET file_name=${array[1]}, local_path=${array[2]}, dist_path=${array[3]} WHERE id=${array[0]};";;
+# 		stratégies*) sqlite3 ${db_name} "UPDATE ${1} SET id_user=${array[1]}, id_rapp=${array[2]}, periodicity=${array[3]} date=${array[4]} WHERE id=${array[0]};";;
+# 		*) exit 1 ;;        
+# 	esac
+# }
