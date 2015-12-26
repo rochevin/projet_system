@@ -84,10 +84,11 @@ function Supp {
 	exit 0
 }
 
-function Create_db {
-	if [[ ! -f "${db_name}"]]; then
-		eval exec "sqlite3 ${db_name} < ${modele_db}" || echo "Impossible de créer la base de données ${db_name}. \n Créer la base manuellement avec le modele disponible : ${modele_db}"
-	fi
+function launch {
+	if [[ ! -x $1 ]]; then
+			chmod +x $1
+		fi
+		./$1
 }
 
 function remove_last_char {
@@ -104,32 +105,39 @@ function get_id {
 
 #print all field except the first (id) with specific separator
 function print_values {
-	echo $1 | awk -F  "${2}" '{$1 = ""; print $0; }'
+	echo $1 | cut -d"${2}" -f2- 
 }
 
-function is_value {
-	sqlite3 ${db_name} "SELECT * FROM ${1}"
+function format_for_sql {
+	echo $1 | awk -F "|" '{out = "\""$1"\"";for(i=2;i<=NF;i++){out=out",\""$i"\""};print out}'
+}
+
+function get_value {
+	case $2 in
+		strats*) sqlite3 ${1} "PRAGMA foreign_keys = ON;SELECT strats.id,users.name,users.first_name,users.mail,rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date FROM ${2} INNER JOIN users ON users.id = strats.id_user INNER JOIN rapps ON rapps.id = strats.id_rapp;";;
+		*) sqlite3 ${1} "PRAGMA foreign_keys = ON;SELECT * FROM ${2};";;
+	esac
 }
 
 function add_value {
-	sqlite3 ${db_name} "INSERT INTO ${1} VALUES (NULL,${2})"
+	sqlite3 ${1} "PRAGMA foreign_keys = ON;INSERT INTO ${2} VALUES (${3});"
 }
 
 function rm_value {
-	sqlite3 ${db_name} "DELETE FROM ${1} WHERE id=${2}"
+	sqlite3 ${1} "PRAGMA foreign_keys = ON;DELETE FROM ${2} WHERE id=${3};"
 }
 
 function mv_value {
-	rm_value ${1} ${2}
-	add_value ${1} ${2}
+	rm_value ${1} ${2} ${3} 
+	add_value ${1} ${2} ${4}
 }
 
 # function mv_value {
 # 	array=(${2//|/ })
 # 	case $1 in
-# 		utilisateurs*) sqlite3 ${db_name} "UPDATE ${1} SET name=${array[1]}, first_name=${array[2]}, mail=${array[3]} WHERE id=${array[0]};";;
-# 		rappatriements*) sqlite3 ${db_name} "UPDATE ${1} SET file_name=${array[1]}, local_path=${array[2]}, dist_path=${array[3]} WHERE id=${array[0]};";;
-# 		stratégies*) sqlite3 ${db_name} "UPDATE ${1} SET id_user=${array[1]}, id_rapp=${array[2]}, periodicity=${array[3]} date=${array[4]} WHERE id=${array[0]};";;
+# 		utilisateurs*) sqlite3 ${1} "UPDATE ${1} SET name=${array[1]}, first_name=${array[2]}, mail=${array[3]} WHERE id=${array[0]};";;
+# 		rappatriements*) sqlite3 ${1} "UPDATE ${1} SET file_name=${array[1]}, local_path=${array[2]}, dist_path=${array[3]} WHERE id=${array[0]};";;
+# 		stratégies*) sqlite3 ${1} "UPDATE ${1} SET id_user=${array[1]}, id_rapp=${array[2]}, periodicity=${array[3]} date=${array[4]} WHERE id=${array[0]};";;
 # 		*) exit 1 ;;        
 # 	esac
 # }
