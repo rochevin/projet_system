@@ -1,89 +1,4 @@
 #! /bin/bash
-
-function no_ref {
-	yad --title="Erreur" --width=300 --center --button="gtk-close" --image=dialog-error --text="Aucun(e) ${file_name}s référencés, vous devez créer un ${file_name} avant cela."
-	./$launcher
-	exit 1
-}
-
-function Ajout {
-	value=$(echo $value | sed 's/.\{1\}$//g')
-
-	[ -z $(echo $value | grep  [a-z]) ] && ./$script_name && exit 1
-
-	if [ ! -s "$file_name" ]; then
-		if [[ ! -x "$file_name" ]]; then
-			chmod +x $file_name
-		fi
-		rm $file_name
-	fi
-	if [ -f "$file_name" ]; then
-		prev_id=$(tail -1 $file_name | cut -f1 -d"|")
-		((prev_id++))
-		result="$prev_id|$value"
-		if [[ ! -x $file_name ]]; then
-			chmod +x $file_name
-		fi
-		echo $result >> $file_name
-	else
-		result="1|$value"
-		echo $result > $file_name
-		if [[ ! -x $file_name ]]; then
-			chmod +x $file_name
-		fi
-	fi
-	./$script_name
-	exit 0
-}
-
-
-function Modif {
-	if [ ! -s "${file_name}" ]; then
-		if [[ ! -x "${file_name}" ]]; then
-			chmod +x ${file_name}
-		fi
-		rm ${file_name}
-	fi
-	if [ -f "${file_name}" ]; then
-		id=$(echo $action | cut -f1 -d"|")
-		id+="|"
-		initial_name=$(grep $id ${file_name})
-		new_name=$(echo $action | sed 's/.\{1\}$//g')
-		sed -i -e "s/${initial_name}/${new_name}/" ${file_name}
-		./${script_name}
-		exit 0
-	else
-		no_ref
-	fi
-	exit 0
-}
-
-function Supp {
-	if [ ! -s "$file_name" ]; then
-		if [[ ! -x "$file_name" ]]; then
-			chmod +x "$file_name"
-		fi
-		rm $file_name
-	fi
-	if [ -f "$file_name" ]; then
-		value=$(echo $action | sed 's/.\{1\}$//g')
-		lign_number_user=$(grep -n "${value}" ${file_name} | cut -f1 -d":")
-		sed -i -e "${lign_number_user}d" ${file_name}
-		
-		if [ ! -s "$file_name" ]; then
-			if [[ ! -x "$file_name" ]]; then
-				chmod +x $file_name
-			fi
-			rm $file_name
-		fi
-		./$script_name
-		exit 0
-	else
-		no_ref
-	fi
-	exit 0
-}
-
 function launch {
 	if [[ ! -x $1 ]]; then
 			chmod +x $1
@@ -132,12 +47,20 @@ function mv_value {
 	add_value ${1} ${2} ${4}
 }
 
-# function mv_value {
-# 	array=(${2//|/ })
-# 	case $1 in
-# 		utilisateurs*) sqlite3 ${1} "UPDATE ${1} SET name=${array[1]}, first_name=${array[2]}, mail=${array[3]} WHERE id=${array[0]};";;
-# 		rappatriements*) sqlite3 ${1} "UPDATE ${1} SET file_name=${array[1]}, local_path=${array[2]}, dist_path=${array[3]} WHERE id=${array[0]};";;
-# 		stratégies*) sqlite3 ${1} "UPDATE ${1} SET id_user=${array[1]}, id_rapp=${array[2]}, periodicity=${array[3]} date=${array[4]} WHERE id=${array[0]};";;
-# 		*) exit 1 ;;        
-# 	esac
-# }
+
+function display_value {
+	case $1 in
+		utilisateur*) 
+			columns="--column=\"Id:HD\" --column=\"Nom:TEXT\" --column=\"Prénom:TEXT\" --column=\"Adresse mail:TEXT\""
+			;;
+		rappatriement*) 
+			columns="--column=\"Id:HD\" --column=\"Nom du fichier:TEXT\" --column=\"Emplacement local:TEXT\" --column=\"emplacement distant:TEXT\""
+			;;
+		stratégies*)
+			columns="--column=\"Id:HD\" --column=\"Nom:TEXT\" --column=\"Prénom:TEXT\" --column=\"Adresse mail:TEXT\" --column=\"Nom du fichier:TEXT\" --column=\"Emplacement local:TEXT\" --column=\"emplacement distant:TEXT\" --column=\"Periodicité:TEXT\" --column=\"Date:TEXT\""
+			;;
+		*) exit 1 ;;        
+	esac
+
+	eval exec "yad --list --editable --width 500 --height 300 --center --button=\"gtk-add:10\" --button=\"gtk-edit:20\" --button=\"gtk-delete:30\" --button=\"Acceuil:0\" --button=\"gtk-close:1\" --title=\"Gestion des ${1}s\" ${columns} ${2}"
+}
