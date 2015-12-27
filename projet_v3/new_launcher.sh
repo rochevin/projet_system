@@ -74,7 +74,7 @@ function default_function {
 	if [[ -n $data ]]; then
 
 		file_data=$( echo $data| tr "|" " ")
-		action=$(eval exec "yad --list --editable --width 500 --height 300 --center --button=\"gtk-add:10\" --button=\"gtk-edit:20\" --button=\"gtk-delete:30\" --button=\"Acceuil:0\" --button=\"gtk-close:1\" --title=\"Gestion des ${name}s\" ${columns} ${file_data}")
+		action=$(eval exec "yad --list --editable --regex-search --width 500 --height 300 --center --button=\"gtk-add:10\" --button=\"gtk-edit:20\" --button=\"gtk-delete:30\" --button=\"Acceuil:0\" --button=\"gtk-close:1\" --title=\"Gestion des ${name}s\" ${columns} ${file_data}")
 		rep=$?
 
 		#Si on appuie sur le bouton close, on quitte le programme
@@ -127,7 +127,6 @@ function strat_function {
 	launcher=$2
 	table_name=$3
 	name=$4
-	columns=$5
 	
 
 	###Récupération des valeurs dans la base de données
@@ -168,25 +167,52 @@ function strat_function {
 		fi
 	else
 		add_for_strat $db_name
+		launch $launcher
 	fi
 
 }
 
 
 function add_for_strat {
-	user_value=$(get_value ${1} "users")
-	user_value=$(echo $user_value | tr "|" " ")
-	user_info=$(yad --width 300 --list --title "Sélectionner un utilisateur" --width 500 --height 300 --center --button="gtk-ok:0" --button="gtk-close:1" --column="Id:HD" --column="Nom:TEXT" --column="Prénom:TEXT" --column="Adresse mail:TEXT" $user_value)
-	rapp_value=$(get_value ${1} "rapps")
-	rapp_value=$(echo $rapp_value | tr "|" " ")
-	rapp_info=$(yad --width 300 --list --title "Sélectionner un rappatriement" --width 500 --height 300 --center --button="gtk-ok:0" --button="gtk-close:1" --column="Id:HD" --column="Nom du fichier:TEXT" --column="Emplacement local:TEXT" --column="emplacement distant:TEXT" $rapp_value)
-	periode=$(yad --width 600 --entry --title "Périodicité" --center --button="gtk-ok:0" --button="gtk-close:1" --text "Periodicité :" --entry-text "Journalier" "Hebdomadaire" "Mensuel")
+
+	user_list=$(get_value $1 "users")
+	user_list=$(echo $user_list | tr " " "!")
+	user_list=$(echo $user_list | tr "|" " ")
+
+	rapp_list=$(get_value $1 "rapps")
+	rapp_list=$(echo $rapp_list | tr " " "!")
+	rapp_list=$(echo $rapp_list | tr "|" " ")
+
+	period_list="Journalier!Hebdomadaire!Mensuel"
+
+
+	result=$(yad --width 500 --height 200 --center --form --separator=':' --field="Utilisateur::cb" "$user_list" --field="Rappatriement::cb" "$rapp_list" --field="Périodicité::cb" "$period_list")
+
+	user=$(echo $result | cut -f1 -d":")
+	rapp=$(echo $result | cut -f2 -d":")
+	periodicite=$(echo $result | cut -f3 -d":")
+    user_id=$(echo $user | cut -f1 -d" ")
+    rapp_id=$(echo $rapp | cut -f1 -d" ")
+
+
+	[[ $rep -eq 1 ]] && exit 0
+
 	declare -A days=( ["lun."]="mon" ["mar."]="tue" ["mer."]="wed" ["jeu."]="thur" ["ven."]="fri" ["sam."]="sat" ["dim."]="sun")
-	case $periode in
-		Hebdomadaire*)date=${days[$(date -d @$(yad --calendar --title "Date" --center --button="gtk-ok:0" --button="gtk-close:1" --date-format='%s') +%a)]};;
-		Mensuel*)date=$(yad --calendar --title "Date" --center --button="gtk-ok:0" --button="gtk-close:1" --date-format='%F'));;
-		*) date="NULL";;
+	
+	case $periodicite in
+		Hebdomadaire*)
+			date=${days[$(date -d @$(yad --calendar --title "Date" --center --button="gtk-ok:0" --button="gtk-close:1" --date-format='%s') +%a)]}
+				;;
+		Mensuel*)
+			date=$(yad --calendar --title "Date" --center --button="gtk-ok:0" --button="gtk-close:1" --date-format='%F')
+				;;
+		*)
+			date="NULL"
+				;;
 	esac
+
+	strat_values="NULL,\""$user_id"\",\""$rapp_id"\",\""$periodicite"\",\""$date"\""
+	add_value $db_name $table_name $strat_values
 }
 
 function main {
@@ -203,7 +229,7 @@ function main {
 	case $action in
 	    utilisateurs*) default_function ${db_name} ${0##*/} "users" "utilisateur";;
 	    rappatriements*) default_function ${db_name} ${0##*/} "rapps" "rappatriement";;
-	    stratégies*) strat_function ${db_name} ${0##*/};;
+	    stratégies*) strat_function ${db_name} ${0##*/} "strats" "stratégies";;
 	    rapport*) report_function ${db_name} ${0##*/};;
 	    *) exit 1 ;;        
 	esac
