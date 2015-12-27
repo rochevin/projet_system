@@ -43,13 +43,16 @@ function rm_value {
 }
 
 function mv_value {
-
 	id=$(get_id $3)
-	value=$(remove_last_char $3)
-	value=$(print_values $value "|")
-	value=$(format_for_sql $value)
-	rm_value ${1} ${2} ${id} 
-	add_value ${1} ${2} ${value}
+	rm_value ${1} ${2} ${id}
+	if [ "$2" = "strats"]; then
+		add_strat ${1} ${id}
+	else
+		value=$(remove_last_char $3)
+		value=$(print_values $value "|")
+		value=$(format_for_sql $value)
+		add_value ${1} ${2} ${id}","${value}
+	fi
 }
 
 
@@ -112,15 +115,18 @@ function add_strat {
 			date="NULL"
 				;;
 	esac
-
-	strat_values="NULL,\""$user_id"\",\""$rapp_id"\",\""$periodicite"\",\""$date"\""
+	if [[ -n $2 ]]; then
+		strat_values=$2",\""$user_id"\",\""$rapp_id"\",\""$periodicite"\",\""$date"\""
+	else 
+		strat_values="NULL,\""$user_id"\",\""$rapp_id"\",\""$periodicite"\",\""$date"\""
+	fi
 	add_value $db_name $table_name $strat_values
 }
 function main {
 
 	launcher=${0##*/}
 	db_name="gestion.db"
-	KEY="123454"
+	KEY="12345"
 
 	user_file=$(mktemp --tmpdir tab1.XXXXXXXX)
 	rapp_file=$(mktemp --tmpdir tab2.XXXXXXXX)
@@ -182,17 +188,23 @@ function main {
 			2*)table="strats";;
 			*) exit 1 ;;
 		esac
-		
+
 		if [[ -n $type ]]; then
 
 			if [[ $rep -eq 20 ]]; then
-						
-				mv_value $db_name $table_name $id $id","$value
+				mv_value $db_name $table $type
+			fi
+
+			if [[ $rep -eq 30 ]]; then
+				id=$(get_id $type)
+				rm_value $db_name $table $id
 			fi
 
 		fi
+		i+=1
 	done
 
+	launch $launcher
 }
 
 #On lance la fonction main
