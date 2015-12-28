@@ -39,14 +39,14 @@ function add_value {
 }
 
 function rm_value {
-	sqlite3 ${1} "PRAGMA foreign_keys = ON;DELETE FROM ${2} WHERE id=${3};"
+	sqlite3 ${1} "PRAGMA foreign_keys = ON;DELETE FROM ${2} WHERE id=${3};" || yad --center --image=dialog-warning --title="Erreur de supression" --text="Impossible de supprimer l'utilisateur ou le rappatriement lorsqu'il est utilisé par une stratégie."
 }
 
 function mv_value {
 	id=$(get_id $3)
 	rm_value ${1} ${2} ${id}
-	if [ "$2" = "strats"]; then
-		add_strat ${1} ${id}
+	if [ $2 = "strats" ]; then
+		add_strat ${1}
 	else
 		value=$(remove_last_char $3)
 		value=$(print_values $value "|")
@@ -120,13 +120,13 @@ function add_strat {
 	else 
 		strat_values="NULL,\""$user_id"\",\""$rapp_id"\",\""$periodicite"\",\""$date"\""
 	fi
-	add_value $db_name $table_name $strat_values
+	add_value $db_name "strats" $strat_values
 }
 function main {
 
 	launcher=${0##*/}
 	db_name="gestion.db"
-	KEY="12345"
+	KEY="123457"
 
 	user_file=$(mktemp --tmpdir tab1.XXXXXXXX)
 	rapp_file=$(mktemp --tmpdir tab2.XXXXXXXX)
@@ -177,34 +177,41 @@ function main {
 		    *) exit 1 ;;        
 		esac
 
-		launch $launcher
-	fi
-
-	i=0
-	for type in $user $rapp $strat ;do
-		case $i in
-			0*)table="users";;
-			1*)table="rapps";;
-			2*)table="strats";;
-			*) exit 1 ;;
-		esac
-
-		if [[ -n $type ]]; then
+	else
+		if [[ -n $user ]]; then
 
 			if [[ $rep -eq 20 ]]; then
-				mv_value $db_name $table $type
+				mv_value $db_name "users" $user
+			elif [[ $rep -eq 30 ]]; then
+				id=$(get_id $user)
+				rm_value $db_name "users" $id
 			fi
-
-			if [[ $rep -eq 30 ]]; then
-				id=$(get_id $type)
-				rm_value $db_name $table $id
-			fi
-
 		fi
-		i+=1
-	done
 
+		if [[ -n $rapp ]]; then
+
+			if [[ $rep -eq 20 ]]; then
+				mv_value $db_name "rapps" $rapp
+			elif [[ $rep -eq 30 ]]; then
+				id=$(get_id $rapp)
+				rm_value $db_name "rapps" $id
+			fi
+		fi
+
+		if [[ -n $strat ]]; then
+
+			if [[ $rep -eq 20 ]]; then
+				mv_value $db_name "strats" $strat
+			elif [[ $rep -eq 30 ]]; then
+				id=$(get_id $strat)
+				rm_value $db_name "strats" $id
+			fi
+		fi
+
+		
+	fi
 	launch $launcher
+
 }
 
 #On lance la fonction main
