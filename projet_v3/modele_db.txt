@@ -18,6 +18,19 @@ CREATE TABLE strats (
 	id_rapp INTEGER NOT NULL,
 	periodicity VARCHAR(20),
 	date DATE,
+	time VARCHAR(10),
+	FOREIGN KEY (id_user) REFERENCES users(id),
+	FOREIGN KEY (id_rapp) REFERENCES rapps(id)
+);
+
+CREATE TABLE cron_task (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+	id_user INTEGER NOT NULL,
+	id_rapp INTEGER NOT NULL,
+	periodicity VARCHAR(20),
+	date DATE,
+	time VARCHAR(10),
+	status TEXT,
 	FOREIGN KEY (id_user) REFERENCES users(id),
 	FOREIGN KEY (id_rapp) REFERENCES rapps(id)
 );
