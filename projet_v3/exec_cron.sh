@@ -36,6 +36,6 @@ wget -a ${wget_output} -N -v -P "${rapp_local}" "${rapp_dist}/${rapp_file}"
 
 status=$(cat ${wget_output} | tail -5 | sed '/^$/d' | tail -1)
 
-add_value ${db_name} "cron_task" "NULL,${sql_value},\"${status}\""
+add_value ${db_name} "cron_task" "NULL,${sql_value},\"$(date)\",\"${status}\""
 
 rm -f $wget_output
