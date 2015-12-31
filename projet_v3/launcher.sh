@@ -48,7 +48,7 @@ function add_rapp {
 function add_strat {
 
 	#On recupère le path du script qui va gérer le telechargement du fichier
-	cron_shell=$(realpath "exec_cron.sh")
+	cron_shell=$(realpath "scripts/exec_cron.sh")
 
 	#On récupère les utilisateurs
 	user_list=$(get_value $1 "users") #Via sqlite avec la fonction get_value
@@ -91,7 +91,8 @@ function add_strat {
 	[[ ! -n $temps ]] && temps="00:00" #Si l'heure est vide, on fourni minuit par défaut
 	heure=$(echo $temps | cut -f1 -d":") #On récupère les heures
 	min=$(echo $temps | cut -f2 -d":") #Puis les minutes
-    
+    [[ $heure -gt "23" ]] && heure="00"
+    [[ $min -gt "59" ]] && heure="00"
     
 	#Si l'utilisateur clique sur quitter 
 	[[ $rep -eq 1 ]] && exit 0
@@ -125,13 +126,13 @@ function add_strat {
 		add_value $db_name "strats" $strat_values
 		data=$(get_strat_fro_cron ${db_name} ${2}) #On récupère la query qui est dans le crontab
 		crontab -l | grep -v "${data}" | crontab #Puis on suprimme la ligne du crontab qui contient cette query
-		crontab < <(crontab -l ; echo "${cron_date} bash ${cron_shell} \"${db_name}\" \"${data}\"") #Et on remplace par la nouvelle
+		crontab < <(crontab -l ; echo "${cron_date} bash -x ${cron_shell} \"${db_name}\" \"${data}\" 2> /home/rochevin/Documents/rochevin_repository/projet_system/projet_v3/coucou.txt ") #Et on remplace par la nouvelle
 	else 
 		#Si on a pas fourni d'id, on en créer une nouvelle stratégie, sans ecraser l'ancienne dans le crontab
 		strat_values="NULL"$strat_values
 		last_id=$(sqlite3 ${db_name} "INSERT INTO strats VALUES (${strat_values});SELECT last_insert_rowid();")
 		data=$(get_strat_fro_cron ${db_name} ${last_id})
-		crontab < <(crontab -l ; echo "${cron_date} bash ${cron_shell} \"${db_name}\" \"${data}\"")
+		crontab < <(crontab -l ; echo "${cron_date} bash -x ${cron_shell} \"${db_name}\" \"${data}\" 2> /home/rochevin/Documents/rochevin_repository/projet_system/projet_v3/coucou.txt ")
 	fi
 	
 
@@ -187,8 +188,8 @@ function report_interface {
 	#Si l'utilisateur veut toutes les périodes, on ne spécifie pas de WHERE pour la periode, sinon, on spécifie pour ne récupèrer que la période voulue.
 	#On fait une réquête pour obtenir les stratégie en cours, et celles qui sont terminées
 	if [[ ! $period_info = "Toutes" ]]; then
-		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date,strats.time FROM strats INNER JOIN rapps ON rapps.id = strats.id_rapp WHERE id_user=${user_id} AND periodicity=${period_info};" > $strat_query
-		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,cron_task.periodicity,cron_task.date,cron_task.time,cron_task.date_complete,cron_task.status FROM cron_task INNER JOIN rapps ON rapps.id = cron_task.id_rapp WHERE id_user=${user_id} AND periodicity=${period_info};" > $cron_query
+		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date,strats.time FROM strats INNER JOIN rapps ON rapps.id = strats.id_rapp WHERE strats.id_user=${user_id} AND strats.periodicity=${period_info};" > $strat_query
+		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,cron_task.periodicity,cron_task.date,cron_task.time,cron_task.date_complete,cron_task.status FROM cron_task INNER JOIN rapps ON rapps.id = cron_task.id_rapp WHERE cron_task.id_user=${user_id} AND cron_task.periodicity=${period_info};" > $cron_query
 	else
 		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date,strats.time FROM strats INNER JOIN rapps ON rapps.id = strats.id_rapp WHERE id_user=${user_id};" > $strat_query
 		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,cron_task.periodicity,cron_task.date,cron_task.time,cron_task.date_complete,cron_task.status FROM cron_task INNER JOIN rapps ON rapps.id = cron_task.id_rapp WHERE id_user=${user_id};" > $cron_query
@@ -228,7 +229,6 @@ function report_interface {
 	fi
 	unset IFS #On remet à zero le séparateur d'élément
 
-	sed -i -e "s%TITRE%Rapport des stratégies pour ${first_name} ${name}%g" $temp_modele #On remplace le titre par le nom de l'utilisateur
 	sed -i -e "s%DATE%$(date +%F)%g" $temp_modele #On remplace la date par la date du jour
 	sed -i -e "s%UTILISATEUR%${first_name} ${name}%g" $temp_modele #On remplace par le nom de l'utilisateur
 	sed -i -e "s%NAME%${name}%g" $temp_modele #On remplace par le nom
@@ -270,7 +270,7 @@ function main {
 	template=$directory"/buttondown.css" #template utilisé pour le rapport
 
 	KEY="12345" #Clé utilisée par yad pour lier les onglets au yad principal
-
+	[[ -n $1 ]] && KEY=$1 #Si l"utilisateur précise une clé, c'est cette valeur qui est prise
 	#On test si le repertoire contenant tous les fichiers existe, sinon, on affiche un message d'erreur et on quitte le programme
 	[[ ! -d $directory ]] && yad --center --image=dialog-warning --title="Erreur" --text="${directory} inexistant, impossible de charger les fonctions et données essentielles au programme." && exit 1
 
@@ -391,4 +391,4 @@ function main {
 }
 
 #On lance la fonction main
-main
+main $1

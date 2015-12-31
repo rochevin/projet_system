@@ -1,5 +1,5 @@
 #! /bin/bash
-
+directory=$(realpath "scripts")
 func_script=$directory"/__sql_func__.sh" #Nom du fichier contenant toutes les fonctions utiles au bon fonctionnement du programme
 [[ -f $func_script ]] && source $func_script
 
@@ -32,13 +32,17 @@ rapp_dist=$(echo $data | cut -f3 -d"|")
 [[ ${rapp_dist: -1} = "/" ]] && rapp_dist=$(remove_last_char ${rapp_dist})
 
 #On execute le wget
-wget -a ${wget_output} -N -v -P "${rapp_local}" "${rapp_dist}/${rapp_file}"
+error=0
+wget -a ${wget_output} -N -v -P "${rapp_local}" "${rapp_dist}/${rapp_file}" || error=1
 
 #On récupère la dernière ligne non vide de l'output de wget
 status=$(cat ${wget_output} | tail -5 | sed '/^$/d' | tail -1)
-
+date=$(date)
 #Puis on maj la base de données comme tache terminée
-add_value ${db_name} "cron_task" "NULL,${sql_value},\"$(date)\",\"${status}\""
-
+if [[ $error -eq 0 ]];then
+	add_value ${db_name} "cron_task" "NULL,${sql_value},\"${date}\",\"${status}\""
+else
+	add_value ${db_name} "cron_task" "NULL,${sql_value},\"${date}\",\"Impossible de télécharger ${rapp_dist}/${rapp_file}\""
+fi
 #enfin on suprimme le fichier temporaire
 rm -f $wget_output

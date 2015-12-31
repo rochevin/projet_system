@@ -1,5 +1,5 @@
 ---
-title: "TITRE"
+title: "Rapport des stratégies"
 author: "UTILISATEUR"
 date: "DATE"
 ---
