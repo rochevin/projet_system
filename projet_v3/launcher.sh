@@ -126,13 +126,14 @@ function add_strat {
 		add_value $db_name "strats" $strat_values
 		data=$(get_strat_fro_cron ${db_name} ${2}) #On récupère la query qui est dans le crontab
 		crontab -l | grep -v "${data}" | crontab #Puis on suprimme la ligne du crontab qui contient cette query
-		crontab < <(crontab -l ; echo "${cron_date} bash -x ${cron_shell} \"${db_name}\" \"${data}\" 2> /home/rochevin/Documents/rochevin_repository/projet_system/projet_v3/coucou.txt ") #Et on remplace par la nouvelle
+		crontab < <(crontab -l ; echo "${cron_date} bash ${cron_shell} \"${db_name}\" \"${data}\"") #Et on remplace par la nouvelle
 	else 
 		#Si on a pas fourni d'id, on en créer une nouvelle stratégie, sans ecraser l'ancienne dans le crontab
 		strat_values="NULL"$strat_values
+		#On insert dans la base et on récupère le dernier ID créer par la BDD pour le signaler au script cron_shell
 		last_id=$(sqlite3 ${db_name} "INSERT INTO strats VALUES (${strat_values});SELECT last_insert_rowid();")
 		data=$(get_strat_fro_cron ${db_name} ${last_id})
-		crontab < <(crontab -l ; echo "${cron_date} bash -x ${cron_shell} \"${db_name}\" \"${data}\" 2> /home/rochevin/Documents/rochevin_repository/projet_system/projet_v3/coucou.txt ")
+		crontab < <(crontab -l ; echo "${cron_date} bash ${cron_shell} \"${db_name}\" \"${data}\"")
 	fi
 	
 

@@ -1,5 +1,5 @@
 #! /bin/bash
-func_script="scripts/__sql_func__.sh" #Nom du fichier contenant toutes les fonctions utiles au bon fonctionnement du programme
+func_script=$(dirname $0)"/__sql_func__.sh" #Nom du fichier contenant toutes les fonctions utiles au bon fonctionnement du programme
 [[ ! -f $func_script ]] && exit 1
 source $func_script
 
