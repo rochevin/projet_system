@@ -10,7 +10,7 @@ function mv_value {
 	#Puis on recréer la ligne avec les nouvelles valeurs :
 	if [ $2 = "strats" ]; then
 		old_query=$(get_strat_fro_cron ${db_name} ${id}) #On récupère la query qui est dans le crontab avant de la supprimmer
-		crontab -l | grep -v "${data}" | crontab #Puis on suprimme la ligne du crontab qui contient cette query
+		crontab -l | grep -v "${old_query}" | crontab #Puis on suprimme la ligne du crontab qui contient cette query
 		rm_value ${1} ${2} ${id} "" #On suprimme l'ancienne ligne sans prendre en compte la contrainte des clés étrangères
 		add_strat ${1} ${id} #On appelle la fonction add_strat qui va créer une nouvelle valeur avec le même identifiant que l'ancienne
 	else
@@ -51,7 +51,7 @@ function add_rapp {
 function add_strat {
 
 	#On recupère le path du script qui va gérer le telechargement du fichier
-	cron_shell=$(realpath "scripts/exec_cron.sh")
+	cron_shell=$(dirname $0)"/scripts/exec_cron.sh"
 
 	#On récupère les utilisateurs
 	user_list=$(get_value $1 "users") #Via sqlite avec la fonction get_value
@@ -191,46 +191,31 @@ function report_interface {
 	#Si l'utilisateur veut toutes les périodes, on ne spécifie pas de WHERE pour la periode, sinon, on spécifie pour ne récupèrer que la période voulue.
 	#On fait une réquête pour obtenir les stratégie en cours, et celles qui sont terminées
 	if [[ ! $period_info = "Toutes" ]]; then
-		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date,strats.time FROM strats INNER JOIN rapps ON rapps.id = strats.id_rapp WHERE strats.id_user=${user_id} AND strats.periodicity LIKE \"${period_info}\";" > $strat_query
-		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,cron_task.periodicity,cron_task.date,cron_task.time,cron_task.date_complete,cron_task.status FROM cron_task INNER JOIN rapps ON rapps.id = cron_task.id_rapp WHERE cron_task.id_user=${user_id} AND cron_task.periodicity LIKE \"${period_info}\";" > $cron_query
+		sqlite3 -header -column ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date,strats.time FROM strats INNER JOIN rapps ON rapps.id = strats.id_rapp WHERE strats.id_user=${user_id} AND strats.periodicity LIKE \"${period_info}\";" > $strat_query
+		sqlite3 -header -column ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,cron_task.periodicity,cron_task.date,cron_task.time,cron_task.date_complete,cron_task.status FROM cron_task INNER JOIN rapps ON rapps.id = cron_task.id_rapp WHERE cron_task.id_user=${user_id} AND cron_task.periodicity LIKE \"${period_info}\";" > $cron_query
 	else
-		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date,strats.time FROM strats INNER JOIN rapps ON rapps.id = strats.id_rapp WHERE id_user=${user_id};" > $strat_query
-		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,cron_task.periodicity,cron_task.date,cron_task.time,cron_task.date_complete,cron_task.status FROM cron_task INNER JOIN rapps ON rapps.id = cron_task.id_rapp WHERE id_user=${user_id};" > $cron_query
+		sqlite3 -header -column ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date,strats.time FROM strats INNER JOIN rapps ON rapps.id = strats.id_rapp WHERE id_user=${user_id};" > $strat_query
+		sqlite3 -header -column ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,cron_task.periodicity,cron_task.date,cron_task.time,cron_task.date_complete,cron_task.status FROM cron_task INNER JOIN rapps ON rapps.id = cron_task.id_rapp WHERE id_user=${user_id};" > $cron_query
 	fi
 
 	#On écrit le modèle de base dans le fichier temporaire
 	cat $modele > $temp_modele
 
-	#Puis on commence à ecrire dans le fichier temporaire pour les stratégies en cours, puis finie
-
 	printf "%s\n\n" "#Stratégies programmées" >> $temp_modele
-	i=1 #On déclare un compteur à un pour le numéro de ligne
-	IFS=$'\n' #On déclare le séparateur d'élement comme étant un retour chariot
 	if [[ -s $strat_query ]]; then #On vérifie que la requête à aboutie
-		for row in $(cat $strat_query); do #Puis on parcours chaque élément de la requête (chaque ligne)
-			[[ $i -eq 2 ]] && printf "%s\n" "$(echo $row | awk -F "|" '{out = "";for(i=1;i<=NF;i++){out=out":-----:|"};print substr(out,1,length(out) -1)}')" >> $temp_modele #Si on est sur la deuxieme ligne, on a dépassé le header, on ecrit au format markdown pour signifier qu'on arrive dans les valeurs
-			printf "%s\n" "$(echo $row | awk -F "|" '{out = "";for(i=1;i<=NF;i++){out=out$i" | "};print substr(out,1,length(out) -3)}')" >> $temp_modele #Dans tous les cas on ecris les valeurs avec un " |" à la fin, sauf pour le dernier
-			i=$i+1
-		done
+		cat $strat_query >> $temp_modele
 		printf "\n%s\n\n" ": Stratégies programmées pour ${first_name} ${name}" >> $temp_modele
 	else
 		printf "\n%s\n\n" "Aucune stratégie prévue pour ${first_name} ${name}"  >> $temp_modele
 	fi
-
-	#On écrit la même chose pour les stratégies terminées
 	printf "%s\n\n" "#Stratégies terminées" >> $temp_modele
-	i=1
 	if [[ -s $cron_query ]]; then #On vérifie que la requête à aboutie
-		for row in $(cat $cron_query); do #Puis on parcours chaque élément de la requête (chaque ligne)
-			[[ $i -eq 2 ]] && printf "%s\n" "$(echo $row | awk -F "|" '{out = "";for(i=1;i<=NF;i++){out=out":-----:|"};print substr(out,1,length(out) -1)}')" >> $temp_modele
-			printf "%s\n" "$(echo $row | awk -F "|" '{out = "";for(i=1;i<=NF;i++){out=out$i" | "};print substr(out,1,length(out) -3)}')" >> $temp_modele
-			i=$i+1
-		done
+		cat $cron_query >> $temp_modele
 		printf "\n%s\n\n" ": Stratégies terminées pour ${first_name} ${name}" >> $temp_modele
 	else
 		printf "\n%s\n\n" "Aucune stratégie terminées pour ${first_name} ${name}"  >> $temp_modele
 	fi
-	unset IFS #On remet à zero le séparateur d'élément
+
 
 	sed -i -e "s%DATE%$(date +%F)%g" $temp_modele #On remplace la date par la date du jour
 	sed -i -e "s%UTILISATEUR%${first_name} ${name}%g" $temp_modele #On remplace par le nom de l'utilisateur
@@ -272,8 +257,12 @@ function main {
 	func_script=$directory"/__sql_func__.sh" #Nom du fichier contenant toutes les fonctions utiles au bon fonctionnement du programme
 	template=$directory"/buttondown.css" #template utilisé pour le rapport
 
-	KEY="12345" #Clé utilisée par yad pour lier les onglets au yad principal
-	[[ -n $1 ]] && KEY=$1 #Si l"utilisateur précise une clé, c'est cette valeur qui est prise
+	
+	if [[ -n $1 ]]; then
+		KEY=$1 #Si l"utilisateur précise une clé, c'est cette valeur qui est prise
+	else
+		KEY="12345" #Clé utilisée par yad pour lier les onglets au yad principal
+	fi
 	#On test si le repertoire contenant tous les fichiers existe, sinon, on affiche un message d'erreur et on quitte le programme
 	[[ ! -d $directory ]] && yad --center --image=dialog-warning --title="Erreur" --text="${directory} inexistant, impossible de charger les fonctions et données essentielles au programme." && exit 1
 
