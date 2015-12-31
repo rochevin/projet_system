@@ -1,0 +1,15 @@
+---
+title: "TITRE"
+author: "UTILISATEUR"
+date: "DATE"
+---
+#Informations
+
+* __Nom :__ NAME
+* __Prénom :__ FIRST
+* __Adresse Mail :__ <MAIL_ADRESS>
+
+
+
+
+
