@@ -6,12 +6,15 @@
 ##Fonction qui modifie une valeur dans la base de données
 function mv_value {
 	id=$(get_id $3) #On récupère l'identifiant
-	rm_value ${1} ${2} ${id} "" #On suprimme l'ancienne ligne sans prendre en compte la contrainte des clés étrangères
 	#Les opérations diffèrent en fonction de si on veut suprimmer une stratégie ou un autre type de données
 	#Puis on recréer la ligne avec les nouvelles valeurs :
 	if [ $2 = "strats" ]; then
-		add_strat ${1} #On appelle la fonction add_strat qui va créer une nouvelle valeur avec le même identifiant que l'ancienne
+		old_query=$(get_strat_fro_cron ${db_name} ${id}) #On récupère la query qui est dans le crontab avant de la supprimmer
+		crontab -l | grep -v "${data}" | crontab #Puis on suprimme la ligne du crontab qui contient cette query
+		rm_value ${1} ${2} ${id} "" #On suprimme l'ancienne ligne sans prendre en compte la contrainte des clés étrangères
+		add_strat ${1} ${id} #On appelle la fonction add_strat qui va créer une nouvelle valeur avec le même identifiant que l'ancienne
 	else
+		rm_value ${1} ${2} ${id} "" #On suprimme l'ancienne ligne sans prendre en compte la contrainte des clés étrangères
 		value=$(remove_last_char $3) #On suprimme le dernier caractère "|"
 		value=$(print_values $value "|") #On affiche les valeurs sans l'identifiant
 		value=$(format_for_sql $value) #On formate la chaine pour qu'elle soit acceptée par sqlite
@@ -121,19 +124,18 @@ function add_strat {
 	strat_values=",\""$user_id"\",\""$rapp_id"\",\""$periodicite"\",\""$date"\",\""$temps"\""
 
 
-	if [[ -n $2 ]]; then
-		strat_values=$2$strat_values
-		add_value $db_name "strats" $strat_values
-		data=$(get_strat_fro_cron ${db_name} ${2}) #On récupère la query qui est dans le crontab
-		crontab -l | grep -v "${data}" | crontab #Puis on suprimme la ligne du crontab qui contient cette query
-		crontab < <(crontab -l ; echo "${cron_date} bash ${cron_shell} \"${db_name}\" \"${data}\"") #Et on remplace par la nouvelle
+	if [[ -n $2 ]]; then #Si $2 n'est pas vide, c'est qu'on veut modifier la strategie, on doit donc la recréer avec le même identifiant
+		strat_values=$2$strat_values #On concatene donc les valeurs avec l'ancien identifiant
+		add_value $db_name "strats" $strat_values #On ajoute les données dans la base de données mais avec le même ID que l'ancien
+		data=$(get_strat_fro_cron ${db_name} ${2}) #On récupère les données à enregistrer dans le crontab (sert au téléchargement)
+		crontab < <(crontab -l ; echo "${cron_date} bash ${cron_shell} \"${db_name}\" \"${data}\"") #On ajoute dans le crontab la nouvelle valeur de la strategie (après modification)
 	else 
 		#Si on a pas fourni d'id, on en créer une nouvelle stratégie, sans ecraser l'ancienne dans le crontab
-		strat_values="NULL"$strat_values
+		strat_values="NULL"$strat_values #On concatene donc les valeurs avec NULL, pour l'autoincrementation
 		#On insert dans la base et on récupère le dernier ID créer par la BDD pour le signaler au script cron_shell
 		last_id=$(sqlite3 ${db_name} "INSERT INTO strats VALUES (${strat_values});SELECT last_insert_rowid();")
-		data=$(get_strat_fro_cron ${db_name} ${last_id})
-		crontab < <(crontab -l ; echo "${cron_date} bash ${cron_shell} \"${db_name}\" \"${data}\"")
+		data=$(get_strat_fro_cron ${db_name} ${last_id}) #On récupère les données à enregistrer dansl e crontab (sert au téléchargement)
+		crontab < <(crontab -l ; echo "${cron_date} bash ${cron_shell} \"${db_name}\" \"${data}\"") #On ajoute dans le crontab la valeur de la stratégie nouvellement créer
 	fi
 	
 
@@ -189,8 +191,8 @@ function report_interface {
 	#Si l'utilisateur veut toutes les périodes, on ne spécifie pas de WHERE pour la periode, sinon, on spécifie pour ne récupèrer que la période voulue.
 	#On fait une réquête pour obtenir les stratégie en cours, et celles qui sont terminées
 	if [[ ! $period_info = "Toutes" ]]; then
-		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date,strats.time FROM strats INNER JOIN rapps ON rapps.id = strats.id_rapp WHERE strats.id_user=${user_id} AND strats.periodicity=${period_info};" > $strat_query
-		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,cron_task.periodicity,cron_task.date,cron_task.time,cron_task.date_complete,cron_task.status FROM cron_task INNER JOIN rapps ON rapps.id = cron_task.id_rapp WHERE cron_task.id_user=${user_id} AND cron_task.periodicity=${period_info};" > $cron_query
+		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date,strats.time FROM strats INNER JOIN rapps ON rapps.id = strats.id_rapp WHERE strats.id_user=${user_id} AND strats.periodicity LIKE \"${period_info}\";" > $strat_query
+		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,cron_task.periodicity,cron_task.date,cron_task.time,cron_task.date_complete,cron_task.status FROM cron_task INNER JOIN rapps ON rapps.id = cron_task.id_rapp WHERE cron_task.id_user=${user_id} AND cron_task.periodicity LIKE \"${period_info}\";" > $cron_query
 	else
 		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,strats.periodicity,strats.date,strats.time FROM strats INNER JOIN rapps ON rapps.id = strats.id_rapp WHERE id_user=${user_id};" > $strat_query
 		sqlite3 -header ${db_name} "SELECT rapps.file_name,rapps.local_path,rapps.dist_path,cron_task.periodicity,cron_task.date,cron_task.time,cron_task.date_complete,cron_task.status FROM cron_task INNER JOIN rapps ON rapps.id = cron_task.id_rapp WHERE id_user=${user_id};" > $cron_query
@@ -372,17 +374,19 @@ function main {
 		fi
 
 		if [[ -n $strat ]]; then #On vérifie que la variable n'est pas vide
-			#rep=20 : modification d'une strategie
-			if [[ $rep -eq 20 ]]; then 
-				mv_value $db_name "strats" $strat #On renvoit vers la fonction de modification de données
-			#rep=30 : supression d'une strategie
-			elif [[ $rep -eq 30 ]]; then
-				id=$(get_id $strat) #On récupère l'identifiant
-				data=$(get_strat_fro_cron ${db_name} ${id}) #On récupère la query qui est dans le crontab
-				crontab -l | grep -v "${data}" | crontab #Puis on suprimme la ligne du crontab qui contient cette query
-				rm_value $db_name "strats" $id "PRAGMA foreign_keys = ON;" #On récupère l'id et on renvoit vers la fonction de suppression de données
+			for s in $strat; do
+				#rep=20 : modification d'une strategie
+				if [[ $rep -eq 20 ]]; then 
+					mv_value $db_name "strats" $s #On renvoit vers la fonction de modification de données
+				#rep=30 : supression d'une strategie
+				elif [[ $rep -eq 30 ]]; then
+					id=$(get_id $s) #On récupère l'identifiant
+					data=$(get_strat_fro_cron ${db_name} ${id}) #On récupère la query qui est dans le crontab
+					crontab -l | grep -v "${data}" | crontab #Puis on suprimme la ligne du crontab qui contient cette query
+					rm_value $db_name "strats" $id "PRAGMA foreign_keys = ON;" #On récupère l'id et on renvoit vers la fonction de suppression de données
 
-			fi
+				fi
+			done
 		fi
 
 		
