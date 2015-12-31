@@ -1,0 +1,101 @@
+---
+title: "Rapport de projet : Gestion automatisée de rappatriements"
+author: "Vincent ROCHER"
+date: "31 Decembre 2015"
+header-includes:
+    - \usepackage{times}
+    - \usepackage[francais]{babel}
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    highlight: zenburn
+    keep_tex: true
+    fig_caption: true
+    number_sections: true
+documentclass: article
+fontsize: 10pt
+geometry: margin=1.5cm
+linkcolor: black
+urlcolor: black
+citecolor: black
+---
+
+#But du projet
+
+Le but du projet est de créer un système permettant de programmer des téléchargement de fichiers distants pour un certain nombre d'utilisateur.
+L'utilisateur du programme devra être capable d'administrer les utilisateurs, les rappatriements, et les stratégies mises en place.
+
+#Développement du programme
+
+##Outils utilisés
+
+* __Yad__ : Gère toute l'interface du programme.
+* __Sqlite 3__ : Stocker les données du programme, y acceder facilement.
+* __Pandoc__ : Permet de générer des formats de documents (pdf, html, tex ...), dans notre cas, permet de générer le compte rendu des rappatriements d'un utilisateur sous format html à partir d'un format markdown.
+* __Realpath__ : Utilisé pour déterminer le chemin absolu d'un fichier
+
+Le choix de l'interface s'est porté sur Yad pour sa possibilité de développer des interface notebook, avec plusieurs onglets. La liste des utilisateurs/rappatriements/stratégies pouvaient alors être accessible sous la même fenêtre.
+
+Afin de stocker les données de façon plus péreine, il a été choisit d'utiliser sqlite3, du fait qu'il est capable de manager une base de données via un seul fichier, ce qui rend le stockage bien plus aisé. Ce systeme gère également les clé étrangères, ce qui permet une meilleur protection des données.
+Cela evite également les redondance d'information, on peut acceder directement aux informations de l'utilisateur et du rappatriement utilisé pour une stratégie données via les jointures.
+
+Pour générer le rapport, le choix s'est porté vers pandoc, car il est capable de convertir très rapidement énormement de formats différents, notamment de convertir du markdown en html, ce qui facilite l'écriture du fichier par le programme, et qui permet un affichage direct via l'interface YAD (qui peut afficher des pages html).
+
+##Fichiers
+
+* __launcher.sh__ : Programme principal.
+* __scripts/buttondown.css__ : Template css pour le rapport html.
+* __scripts/exec_cron.sh__ : Script qui gère le téléchargement du fichier distant, ainsi que la mise à jour des données dans la base de données.
+* __scripts/gestion.db__ : Fichier contenant la base de données sqlite.
+* __scripts/modele_db.txt__ : Modèle de la base, utilisé en cas de délétion de celle-ci.
+* __scripts/modele_md.txt__ : Modèle du rapport en markdown.
+* __scripts/__sql_func__.sh__ : Fonctions utiles au bon fonctionnement du programme.
+
+#Déroulement du programme
+
+Pour chaque type de données (utilisateur/rappatriement/stratégie), il est possible d'ajouter/modifier/suprimmer une information directement depuis l'interface
+
+##Ajout de données
+
+En cliquant sur le bouton "ajouter" de l'interface, on dispose de la possibilité de sélectionner le type de données, ce qui conduit vers une interface différente en fonction du choix.
+
+##Supression de données
+
+Il est possible de suprimmer plusieurs utilisateurs/rappatriement d'un coup, en les sélectionnant depuis l'interface, puis en cliquant sur le bouton suprimmer. 
+
+Les utilisateurs ou rappatriements utilisés par une stratégie sont impossible à suprimmer directement, il faut d'abbord suprimmer la stratégie.
+
+Lors de la supression d'une stratégie, le fichier crontab est également édité, et la ligne correspondante suprimmée.
+
+##Modification de données
+
+La modification d'un type de données se fait par la suppression de l'ancienne ligne, puis par l'ajout d'une nouvelle ligne avec les nouvelles valeurs, en conservant l'identifiant. Cette façon de faire à été privilégiée car plus simple à gérer via l'interface, car il n'était pas possible de voir directement quelle valeur était modifiée. Il était donc plus simple de recréer toute la ligne avec les mêmes valeurs.
+
+
+##Ajout d'une stratégie
+
+Dans tous les cas, on demande à l'administrateur de sélectionner un utilisateur, un rappatriement, une période, et de dater sa stratégie (jour et heure). En fonction de la période sélectionnée, la date va être formatée de façon différente, et intégrée au crontab : 
+* __Journalier__ : date nulle, crontab équivalent à __00..59 00..23 * * *__
+* __Hebdomadaire__ : date formatée en "+%w", on obtient un numéro allant de 0 à 6 correspondant aux jours de la semaine, crontab équivalent à __00..59 00..23 * * 0..6__
+* __Mensuel__ : date formaté en "+%d", soit en crontab : __00..59 00..23 0..31 * *__
+* __Annuel__ : date formatée en "+%d %m", soit en crontab : __00..59 00..23 0..31 1..12 *__
+
+##Génération du rapport
+
+On sélectionne un utilisateur et une période (aucune,journalier,hebdomadaire ou mensuel).
+À partir de ce choix, le programme va faire une requête dans la base de données en fonction de l'identifiant de l'utilisateur, et en fonction de la périodicité de ses stratégies planifiées et terminées.
+
+On obtient un rapport html généré via markdown, avec deux tableaux, pour les stratégies planifiées, et stratégies finies.
+
+#Difficultées rencontrées
+
+La principale difficultée a été la conversion entre l'input pour yad et son output, ainsi que le format accepté par sqlite pour insérer des données, il est sans cesse nécessaire de formater les données pour qu'elles soient interpretables par les différents outils, que ce soit yad, sqlite ou pandoc.
+
+Créer une interface de type onglet à été relativement difficile à mettre en place, et il subsiste quelques problèmes, notamment lorsqu'on quitte le programme via le terminal. Il faut alors préciser une clé au programme (par exemple 12345678). Il est nécessaire de stocker les informations de chaque onglet dans un fichier temporaire, puis de vérifier quel fichier contient quelque chose, et enfin de vérifier quelle opération veut effectuer l'utilisateur (ajout/modification/supression). L'avantage c'est qu'il est possible de modifier plusieurs données de façon simultanée, pour des types de données différents.
+
+Générer le rapport en marldown a également été compliqué, sachant qu'il fallait formater le tableau en markdown, en créant une ligne de tableau pour chaque stratégie.
+
+Le choix d'utiliser le markdown et sqlite à permis de générer une sortie de requête directement interpretable par pandoc comme étant un tableau en markdown, en précisant les flag `bash -header` et `bash -column` à sqlite3. 
+
+
